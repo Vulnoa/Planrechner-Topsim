@@ -1,5 +1,10 @@
 # Änderungen
 
+## 1.3.3 – 03.11.2026
+- Updates kommen zuverlässig an: Eine neue Version übernimmt sofort, die App sucht beim Zurückkehren und alle 30 Minuten danach, und „Neu laden“ zeigt direkt die neue Version.
+- Übergibt Android eine Sicherungsdatei leer (0 Bytes), erklärt die Meldung jetzt, wie man sie trotzdem auswählt.
+- Eine Sicherung kann auch als Text ins Feld „Einlesen“ eingefügt werden.
+
 ## 1.3.2 – 03.11.2026
 - Sicherung importieren ist toleranter: Byte-Order-Mark, Leerzeichen oder Text rund um die Daten stören nicht mehr.
 - Klappt der Import nicht, nennt die Meldung jetzt den Grund (Dateiname, Größe, Dateianfang, Fehler). Ein fehlgeschlagener Import lässt die bisherigen Daten unverändert.

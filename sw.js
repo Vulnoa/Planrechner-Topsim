@@ -1,8 +1,9 @@
 // Offline-Cache der App. Neue Version: CACHE-Namen erhöhen.
-const CACHE = 'planrechner-1.3.2';
+const CACHE = 'planrechner-1.3.3';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'css/app.css', 'js/app.bundle.js', 'img/logo.svg', 'img/icon-192.png', 'img/icon-512.png', 'img/icon-maskable-512.png',
   'vendor/jspdf.umd.min.js', 'vendor/jspdf.plugin.autotable.min.js', 'vendor/jszip.min.js', 'vendor/pdf.min.js', 'vendor/pdf.worker.min.js'];
-self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES))); });
+// Neue Version sofort aktivieren (die Seite lädt danach automatisch neu)
+self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES.map((f) => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting())); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('message', (e) => { if (e.data === 'skip') self.skipWaiting(); });
 self.addEventListener('fetch', (e) => {

@@ -2125,7 +2125,7 @@
   }
 
   // js/app.js
-  var VERSION = "1.3.2";
+  var VERSION = "1.3.3";
   var KEY = "tonwerk-planrechner-v1";
   var $ = (s, el = document) => el.querySelector(s);
   var esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -3882,7 +3882,9 @@
         break;
       case "parse": {
         const txt = $("#paste").value;
-        if (txt.trim()) {
+        if (looksLikeBackup(txt))
+          importBackupText(txt, t("eingef\xFCgter Text"));
+        else if (txt.trim()) {
           pending = analyse(txt);
           render();
         }
@@ -3939,10 +3941,19 @@
     pending = analyse(txt);
     render();
   }
+  var CODE_PREFIX = "TONWERK-SICHERUNG:";
+  function looksLikeBackup(txt) {
+    const x = txt.replace(/^\uFEFF/, "").trim();
+    return x.startsWith(CODE_PREFIX) || x.startsWith("{") && /"states"\s*:/.test(x) && /"params"\s*:/.test(x);
+  }
+  async function gz(bytes, mode) {
+    const st = new Blob([bytes]).stream().pipeThrough(mode === "c" ? new CompressionStream("gzip") : new DecompressionStream("gzip"));
+    return new Uint8Array(await new Response(st).arrayBuffer());
+  }
   async function importBackup(file) {
     if (!file)
       return;
-    let txt = "", s;
+    let txt = "";
     try {
       txt = await file.text();
     } catch (e) {
@@ -3952,16 +3963,30 @@ ${file.name} \xB7 ${file.size} Bytes
 ${e?.message || e}`);
       return;
     }
-    let raw = txt.replace(/^\uFEFF/, "").trim();
-    const a = raw.indexOf("{"), b = raw.lastIndexOf("}");
-    if (a > 0 || b >= 0 && b < raw.length - 1)
-      raw = raw.slice(a, b + 1);
+    if (!txt.trim()) {
+      alert(t("Android hat der App die Datei leer \xFCbergeben (0 Bytes), obwohl sie auf dem Ger\xE4t vollst\xE4ndig ist. Das passiert bei Dateien, die eine andere App heruntergeladen hat. Abhilfe: In der Dateiauswahl \xFCber das Men\xFC \u2630 den Ger\xE4tespeicher \u203A Download \xF6ffnen statt \u201EDownloads\u201C, oder die Datei in der Dateien-App einmal kopieren (z. B. nach \u201EDokumente\u201C) und die Kopie w\xE4hlen.") + `
+
+${file.name}`);
+      return;
+    }
+    importBackupText(txt, `${file.name} \xB7 ${file.size} Bytes \xB7 ${file.type || "?"}`);
+  }
+  async function importBackupText(txt, label) {
+    let raw = txt.replace(/^\uFEFF/, "").trim(), s;
     try {
+      if (raw.startsWith(CODE_PREFIX)) {
+        const bin = atob(raw.slice(CODE_PREFIX.length).replace(/\s+/g, ""));
+        raw = new TextDecoder().decode(await gz(Uint8Array.from(bin, (c) => c.charCodeAt(0)), "d"));
+      } else {
+        const a = raw.indexOf("{"), b = raw.lastIndexOf("}");
+        if (a > 0 || b >= 0 && b < raw.length - 1)
+          raw = raw.slice(a, b + 1);
+      }
       s = JSON.parse(raw);
     } catch (e) {
       alert(t("Die Datei ist keine g\xFCltige Sicherung.") + `
 
-${file.name} \xB7 ${file.size} Bytes \xB7 ${file.type || "?"}
+${label}
 ${t("Anfang")}: ${txt.slice(0, 60).replace(/\s+/g, " ")}
 ${e?.message || e}`);
       return;
@@ -3969,13 +3994,14 @@ ${e?.message || e}`);
     if (!s || typeof s !== "object" || !s.states || !s.params) {
       alert(t("Die Datei ist keine g\xFCltige Sicherung.") + `
 
-${file.name}: ${t("Perioden oder Rahmendaten fehlen.")}`);
+${label}: ${t("Perioden oder Rahmendaten fehlen.")}`);
       return;
     }
     const old = store;
     try {
       store = migrate(s);
       setLang(store.lang || "de");
+      pending = null;
       render();
       persist();
       toast(t("Sicherung importiert"));
@@ -4046,18 +4072,29 @@ ${e?.message || e}`);
       hideTip();
   }, { passive: true });
   if ("serviceWorker" in navigator && location.protocol !== "file:") {
-    navigator.serviceWorker.register("sw.js").then((reg) => {
-      reg.addEventListener("updatefound", () => {
-        const nw = reg.installing;
-        nw?.addEventListener("statechange", () => {
-          if (nw.state === "installed" && navigator.serviceWorker.controller) {
-            const b = document.createElement("div");
-            b.className = "update";
-            b.innerHTML = `${t("Neue Version verf\xFCgbar.")} <button class="btn small" id="upd">${t("Neu laden")}</button>`;
-            document.body.prepend(b);
-          }
-        });
+    const banner = () => {
+      if ($("#upd"))
+        return;
+      const b = document.createElement("div");
+      b.className = "update";
+      b.innerHTML = `${t("Neue Version verf\xFCgbar.")} <button class="btn small" id="upd">${t("Neu laden")}</button>`;
+      document.body.prepend(b);
+    };
+    const hadCtrl = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (hadCtrl)
+        banner();
+    });
+    navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then((reg) => {
+      if (reg.waiting)
+        reg.waiting.postMessage("skip");
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible")
+          reg.update().catch(() => {
+          });
       });
+      setInterval(() => reg.update().catch(() => {
+      }), 30 * 60 * 1e3);
     }).catch(() => {
     });
   }

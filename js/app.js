@@ -7,7 +7,7 @@ import { downloadZip, downloadSingle, save, spickzettelPdf } from './pdf.js';
 import { t, setLang, getLang } from './i18n.js';
 import { calibrate, looCheck, forecast, firmsFromMarkt, defaultProgSettings, PRIOR } from './prognose.js';
 
-const VERSION = '1.3.2';
+const VERSION = '1.3.3';
 const KEY = 'tonwerk-planrechner-v1';
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -1108,7 +1108,7 @@ document.addEventListener('click', async (e) => {
     case 'screname': scenarioDialog('rename', scen()); break;
     case 'scteam': store.scenarios[p].forEach((s) => (s.team = s.id === scen().id)); persist(); render(); break;
     case 'scdel': if (store.scenarios[p].length > 1 && confirm(t('Szenario löschen?'))) { store.scenarios[p] = store.scenarios[p].filter((s) => s.id !== scen().id); store.active[p] = store.scenarios[p][0].id; persist(); render(); } break;
-    case 'parse': { const txt = $('#paste').value; if (txt.trim()) { pending = analyse(txt); render(); } break; }
+    case 'parse': { const txt = $('#paste').value; if (looksLikeBackup(txt)) importBackupText(txt, t('eingefügter Text')); else if (txt.trim()) { pending = analyse(txt); render(); } break; }
     case 'apply': if (pending) { applyImport(pending); const per = pending.period; pending = null; toast(`${t('Periode')} ${per} ${t('übernommen')}`); ui.route = 'berichte'; ui.repPeriod = per; render(); } break;
     case 'discard': pending = null; render(); break;
     case 'exp': save(new Blob([JSON.stringify(store, null, 1)], { type: 'application/json' }), `TONWERK_Planrechner_Sicherung_${new Date().toISOString().slice(0, 10)}.json`); break;
@@ -1129,20 +1129,36 @@ async function readFiles(files) {
   for (const f of files) txt += '\n' + (f.type === 'application/pdf' || /\.pdf$/i.test(f.name) ? await pdfToText(f) : await f.text());
   pending = analyse(txt); render();
 }
+const CODE_PREFIX = 'TONWERK-SICHERUNG:';
+function looksLikeBackup(txt) { const x = txt.replace(/^\uFEFF/, '').trim(); return x.startsWith(CODE_PREFIX) || (x.startsWith('{') && /"states"\s*:/.test(x) && /"params"\s*:/.test(x)); }
+async function gz(bytes, mode) {
+  const st = new Blob([bytes]).stream().pipeThrough(mode === 'c' ? new CompressionStream('gzip') : new DecompressionStream('gzip'));
+  return new Uint8Array(await new Response(st).arrayBuffer());
+}
 async function importBackup(file) {
   if (!file) return;
-  let txt = '', s;
+  let txt = '';
   try { txt = await file.text(); } catch (e) { alert(t('Die Datei konnte nicht gelesen werden.') + `\n\n${file.name} · ${file.size} Bytes\n${e?.message || e}`); return; }
-  // BOM, Leerzeichen oder Text drumherum (z. B. vom Download aus einer App) entfernen
-  let raw = txt.replace(/^\uFEFF/, '').trim();
-  const a = raw.indexOf('{'), b = raw.lastIndexOf('}');
-  if (a > 0 || (b >= 0 && b < raw.length - 1)) raw = raw.slice(a, b + 1);
-  try { s = JSON.parse(raw); } catch (e) {
-    alert(t('Die Datei ist keine gültige Sicherung.') + `\n\n${file.name} · ${file.size} Bytes · ${file.type || '?'}\n${t('Anfang')}: ${txt.slice(0, 60).replace(/\s+/g, ' ')}\n${e?.message || e}`); return;
+  if (!txt.trim()) { alert(t('Android hat der App die Datei leer übergeben (0 Bytes), obwohl sie auf dem Gerät vollständig ist. Das passiert bei Dateien, die eine andere App heruntergeladen hat. Abhilfe: In der Dateiauswahl über das Menü ☰ den Gerätespeicher › Download öffnen statt „Downloads“, oder die Datei in der Dateien-App einmal kopieren (z. B. nach „Dokumente“) und die Kopie wählen.') + `\n\n${file.name}`); return; }
+  importBackupText(txt, `${file.name} · ${file.size} Bytes · ${file.type || '?'}`);
+}
+async function importBackupText(txt, label) {
+  let raw = txt.replace(/^\uFEFF/, '').trim(), s;
+  try {
+    if (raw.startsWith(CODE_PREFIX)) {
+      const bin = atob(raw.slice(CODE_PREFIX.length).replace(/\s+/g, ''));
+      raw = new TextDecoder().decode(await gz(Uint8Array.from(bin, (c) => c.charCodeAt(0)), 'd'));
+    } else {
+      const a = raw.indexOf('{'), b = raw.lastIndexOf('}');
+      if (a > 0 || (b >= 0 && b < raw.length - 1)) raw = raw.slice(a, b + 1);
+    }
+    s = JSON.parse(raw);
+  } catch (e) {
+    alert(t('Die Datei ist keine gültige Sicherung.') + `\n\n${label}\n${t('Anfang')}: ${txt.slice(0, 60).replace(/\s+/g, ' ')}\n${e?.message || e}`); return;
   }
-  if (!s || typeof s !== 'object' || !s.states || !s.params) { alert(t('Die Datei ist keine gültige Sicherung.') + `\n\n${file.name}: ${t('Perioden oder Rahmendaten fehlen.')}`); return; }
+  if (!s || typeof s !== 'object' || !s.states || !s.params) { alert(t('Die Datei ist keine gültige Sicherung.') + `\n\n${label}: ${t('Perioden oder Rahmendaten fehlen.')}`); return; }
   const old = store;
-  try { store = migrate(s); setLang(store.lang || 'de'); render(); persist(); toast(t('Sicherung importiert')); }
+  try { store = migrate(s); setLang(store.lang || 'de'); pending = null; render(); persist(); toast(t('Sicherung importiert')); }
   catch (e) { store = old; try { render(); } catch {} alert(t('Die Sicherung konnte nicht geladen werden.') + `\n\n${e?.message || e}`); }
 }
 document.addEventListener('dragover', (e) => { const d = e.target.closest?.('#drop'); if (d) { e.preventDefault(); d.classList.add('over'); } });
@@ -1162,12 +1178,15 @@ document.addEventListener('touchstart', (e) => { const el = e.target.closest?.('
 
 // Service Worker (offline + Update-Hinweis)
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-  navigator.serviceWorker.register('sw.js').then((reg) => {
-    reg.addEventListener('updatefound', () => { const nw = reg.installing; nw?.addEventListener('statechange', () => {
-      if (nw.state === 'installed' && navigator.serviceWorker.controller) {
-        const b = document.createElement('div'); b.className = 'update'; b.innerHTML = `${t('Neue Version verfügbar.')} <button class="btn small" id="upd">${t('Neu laden')}</button>`;
-        document.body.prepend(b);
-      } }); });
+  const banner = () => { if ($('#upd')) return; const b = document.createElement('div'); b.className = 'update'; b.innerHTML = `${t('Neue Version verfügbar.')} <button class="btn small" id="upd">${t('Neu laden')}</button>`; document.body.prepend(b); };
+  // Neue Version übernimmt sofort (skipWaiting); Hinweis nur, wenn vorher schon eine Version aktiv war
+  const hadCtrl = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadCtrl) banner(); });
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => {
+    if (reg.waiting) reg.waiting.postMessage('skip');
+    // beim Zurückkehren in die App und alle 30 Minuten nach Updates schauen
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => {}); });
+    setInterval(() => reg.update().catch(() => {}), 30 * 60 * 1000);
   }).catch(() => {});
 }
 
