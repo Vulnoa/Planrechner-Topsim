@@ -2125,7 +2125,7 @@
   }
 
   // js/app.js
-  var VERSION = "1.3.0";
+  var VERSION = "1.3.1";
   var KEY = "tonwerk-planrechner-v1";
   var $ = (s, el = document) => el.querySelector(s);
   var esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -2787,7 +2787,7 @@
       <td>${store.istInputs[p] && store.states[p - 1] ? "\u2713" : "\u2013"}</td><td><button class="btn ghost small" data-editstate="${p}">${t("Endstand bearbeiten")}</button></td></tr>`).join("")}
     <tr><td>${t("Periode")} ${planPeriod()}</td><td colspan="5">${t("Planperiode")}</td></tr></tbody></table></div></div>`;
     h += `<div class="card"><h3>${t("Sicherung")}</h3><p class="muted">${t("Alle Daten liegen nur auf diesem Ger\xE4t (im Browser). F\xFCr ein anderes Ger\xE4t oder als Sicherung exportieren und dort importieren.")}</p>
-    <div class="row"><button class="btn" id="exp">${t("Sicherung exportieren")}</button><label class="btn ghost">${t("Sicherung importieren")}<input type="file" id="imp" accept=".json,application/json" hidden></label>
+    <div class="row"><button class="btn" id="exp">${t("Sicherung exportieren")}</button><label class="btn ghost">${t("Sicherung importieren")}<input type="file" id="imp" hidden></label>
     <button class="btn danger" id="wipe">${t("Alles zur\xFCcksetzen")}</button></div></div>`;
     return h;
   }
@@ -3941,10 +3941,12 @@
   }
   async function importBackup(file) {
     try {
+      if (!file)
+        return;
       const s = JSON.parse(await file.text());
       if (!s.states || !s.params)
         throw new Error();
-      store = s;
+      store = migrate(s);
       persist();
       setLang(store.lang || "de");
       render();

@@ -7,7 +7,7 @@ import { downloadZip, downloadSingle, save, spickzettelPdf } from './pdf.js';
 import { t, setLang, getLang } from './i18n.js';
 import { calibrate, looCheck, forecast, firmsFromMarkt, defaultProgSettings, PRIOR } from './prognose.js';
 
-const VERSION = '1.3.0';
+const VERSION = '1.3.1';
 const KEY = 'tonwerk-planrechner-v1';
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -505,7 +505,7 @@ function renderDaten() {
       <td>${store.istInputs[p] && store.states[p - 1] ? '✓' : '–'}</td><td><button class="btn ghost small" data-editstate="${p}">${t('Endstand bearbeiten')}</button></td></tr>`).join('')}
     <tr><td>${t('Periode')} ${planPeriod()}</td><td colspan="5">${t('Planperiode')}</td></tr></tbody></table></div></div>`;
   h += `<div class="card"><h3>${t('Sicherung')}</h3><p class="muted">${t('Alle Daten liegen nur auf diesem Gerät (im Browser). Für ein anderes Gerät oder als Sicherung exportieren und dort importieren.')}</p>
-    <div class="row"><button class="btn" id="exp">${t('Sicherung exportieren')}</button><label class="btn ghost">${t('Sicherung importieren')}<input type="file" id="imp" accept=".json,application/json" hidden></label>
+    <div class="row"><button class="btn" id="exp">${t('Sicherung exportieren')}</button><label class="btn ghost">${t('Sicherung importieren')}<input type="file" id="imp" hidden></label>
     <button class="btn danger" id="wipe">${t('Alles zurücksetzen')}</button></div></div>`;
   return h;
 }
@@ -1130,7 +1130,7 @@ async function readFiles(files) {
   pending = analyse(txt); render();
 }
 async function importBackup(file) {
-  try { const s = JSON.parse(await file.text()); if (!s.states || !s.params) throw new Error(); store = s; persist(); setLang(store.lang || 'de'); render(); toast(t('Sicherung importiert')); }
+  try { if (!file) return; const s = JSON.parse(await file.text()); if (!s.states || !s.params) throw new Error(); store = migrate(s); persist(); setLang(store.lang || 'de'); render(); toast(t('Sicherung importiert')); }
   catch { alert(t('Die Datei ist keine gültige Sicherung.')); }
 }
 document.addEventListener('dragover', (e) => { const d = e.target.closest?.('#drop'); if (d) { e.preventDefault(); d.classList.add('over'); } });

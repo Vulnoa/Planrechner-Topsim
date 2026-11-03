@@ -1,5 +1,9 @@
 # Änderungen
 
+## 1.3.1 – 03.11.2026
+- Sicherung importieren klappt jetzt auch auf Android: Die Dateiauswahl filtert nicht mehr nach Dateityp (Android erkennt .json oft nicht), geprüft wird stattdessen der Inhalt.
+- Ältere Sicherungen werden beim Import automatisch auf den aktuellen Stand gebracht.
+
 ## 1.3.0 – 03.11.2026
 - Leerer Start: Die öffentliche App enthält nur noch die für alle gleiche Ausgangslage Periode 0. Eigene Daten kommen per Import oder Sicherungsdatei dazu.
 - Willkommenskarte mit den ersten Schritten.
