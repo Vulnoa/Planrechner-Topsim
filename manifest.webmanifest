@@ -1,0 +1,16 @@
+{
+  "name": "TONWERK Planrechner",
+  "short_name": "Planrechner",
+  "description": "Planungsrechnung für TOPSIM Management Essentials mit Erfolgswert-Schätzung.",
+  "lang": "de",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f8fc",
+  "theme_color": "#0a5fa8",
+  "icons": [
+    { "src": "img/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "img/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "img/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

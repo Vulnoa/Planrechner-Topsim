@@ -1,0 +1,69 @@
+# Automatische Prüfung bei jedem Hochladen: Rechentests, Virenscan, Bibliotheken gegen Originale
+name: Prüfung
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 5 * * 1"   # jeden Montag neu scannen (aktuelle Virensignaturen)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Rechenkern und Prognose
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Konsistenztest Rechenkern (Bilanz, Kasse, Lager, Personal)
+        run: node test/engine.test.mjs
+      - name: Absatzprognose kalibrieren
+        run: node test/prognose.test.mjs
+
+  virenscan:
+    name: Virenscan (ClamAV)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: ClamAV installieren und Signaturen aktualisieren
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq clamav clamav-freshclam
+          sudo systemctl stop clamav-freshclam || true
+          sudo freshclam --quiet
+      - name: Alle Dateien scannen
+        run: |
+          clamscan --recursive --infected --exclude-dir='^\./\.git' . | tee scan.txt
+          echo "### Virenscan" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          tail -n 12 scan.txt >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+  bibliotheken:
+    name: Bibliotheken unverändert
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: vendor/ byte-genau mit den offiziellen npm-Paketen vergleichen
+        run: bash scripts/verify-vendor.sh
+
+  netzwerk:
+    name: Keine Internetzugriffe im Code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Eigener Code enthält keine externen Adressen
+        run: |
+          if grep -nE "https?://" index.html sw.js js/*.js; then
+            echo "Externe Adresse gefunden"; exit 1; fi
+          grep -q "Content-Security-Policy" index.html
+          echo "OK: keine externen Adressen, Sicherheitsrichtlinie (CSP) gesetzt"

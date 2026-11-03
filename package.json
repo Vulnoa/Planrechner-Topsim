@@ -1,0 +1,14 @@
+{
+  "name": "planrechner-topsim",
+  "version": "1.3.0",
+  "description": "Planungsrechnung für TOPSIM Management Essentials als Web-App (PWA), läuft offline im Browser.",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "test": "node test/engine.test.mjs && node test/prognose.test.mjs",
+    "build": "npx esbuild@0.24.0 js/app.js --bundle --format=iife --target=es2020 --outfile=js/app.bundle.js",
+    "verify-vendor": "bash scripts/verify-vendor.sh",
+    "start": "python3 -m http.server 8080"
+  }
+}

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="de" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <!-- Sicherheitsrichtlinie: Die App lädt nichts aus dem Internet und sendet keine Daten. Alles kommt aus diesem Ordner. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; worker-src 'self' blob:; connect-src 'self' blob: data:; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>TONWERK Planrechner</title>
+  <meta name="description" content="Planungsrechnung für TOPSIM Management Essentials – offline, kostenlos, mit Erfolgswert-Schätzung.">
+  <meta name="theme-color" content="#0a5fa8">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="img/logo.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="img/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Planrechner">
+  <link rel="stylesheet" href="css/app.css">
+  <script>try { var s = JSON.parse(localStorage.getItem('tonwerk-planrechner-v1')); if (s && s.theme) document.documentElement.dataset.theme = s.theme; } catch (e) {}</script>
+</head>
+<body>
+  <header class="top">
+    <button class="iconbtn menu-toggle" id="menu" aria-label="Menü">☰</button>
+    <img class="wappen" src="img/logo.svg" alt="TONWERK Planrechner">
+    <div class="brand"><b><span id="brand-name">TONWERK</span> Planrechner</b><small id="brand-sub"></small></div>
+    <div class="spacer"></div>
+    <div class="chips" id="chips"></div>
+    <button class="iconbtn" id="theme" title="Hell / Dunkel / Mitternacht" aria-label="Farbmodus wechseln"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"/></svg></button>
+  </header>
+  <div class="rauten" aria-hidden="true"></div>
+  <div class="layout">
+    <aside class="side" id="side"></aside>
+    <main class="content" id="content"></main>
+  </div>
+  <div class="resultbar" id="bar"></div>
+  <dialog id="dlg"></dialog>
+  <noscript>Bitte JavaScript aktivieren.</noscript>
+  <script src="vendor/jspdf.umd.min.js"></script>
+  <script src="vendor/jspdf.plugin.autotable.min.js"></script>
+  <script src="vendor/jszip.min.js"></script>
+  <script src="vendor/pdf.min.js"></script>
+  <script src="js/app.bundle.js"></script>
+</body>
+</html>

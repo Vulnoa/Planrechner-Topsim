@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="TONWERK Planrechner">
+  <defs>
+    <pattern id="r" width="16" height="16" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="16" height="16" fill="#ffffff"/><rect width="8" height="8" fill="#0a7dc2"/><rect x="8" y="8" width="8" height="8" fill="#0a7dc2"/>
+    </pattern>
+    <clipPath id="c"><rect x="4" y="4" width="120" height="120" rx="28"/></clipPath>
+  </defs>
+  <g clip-path="url(#c)">
+    <rect width="128" height="128" fill="url(#r)"/>
+    <rect y="62" width="128" height="66" fill="#0a5fa8"/>
+  </g>
+  <rect x="4" y="4" width="120" height="120" rx="28" fill="none" stroke="#0a5fa8" stroke-width="4"/>
+  <!-- Kopfhörer -->
+  <path d="M30 84 V70 C30 46 45 32 64 32 C83 32 98 46 98 70 V84" fill="none" stroke="#ffffff" stroke-width="10" stroke-linecap="round"/>
+  <path d="M30 84 V70 C30 46 45 32 64 32 C83 32 98 46 98 70 V84" fill="none" stroke="#0a5fa8" stroke-width="4" stroke-linecap="round"/>
+  <rect x="22" y="72" width="18" height="32" rx="7" fill="#ffffff"/>
+  <rect x="88" y="72" width="18" height="32" rx="7" fill="#ffffff"/>
+  <!-- Balken (Planrechnung) -->
+  <rect x="50" y="90" width="7" height="14" rx="2" fill="#ffffff"/>
+  <rect x="60.5" y="82" width="7" height="22" rx="2" fill="#ffffff"/>
+  <rect x="71" y="74" width="7" height="30" rx="2" fill="#e2b23a"/>
+</svg>
