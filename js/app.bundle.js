@@ -2125,7 +2125,7 @@
   }
 
   // js/app.js
-  var VERSION = "1.3.1";
+  var VERSION = "1.3.2";
   var KEY = "tonwerk-planrechner-v1";
   var $ = (s, el = document) => el.querySelector(s);
   var esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -3940,19 +3940,54 @@
     render();
   }
   async function importBackup(file) {
+    if (!file)
+      return;
+    let txt = "", s;
     try {
-      if (!file)
-        return;
-      const s = JSON.parse(await file.text());
-      if (!s.states || !s.params)
-        throw new Error();
+      txt = await file.text();
+    } catch (e) {
+      alert(t("Die Datei konnte nicht gelesen werden.") + `
+
+${file.name} \xB7 ${file.size} Bytes
+${e?.message || e}`);
+      return;
+    }
+    let raw = txt.replace(/^\uFEFF/, "").trim();
+    const a = raw.indexOf("{"), b = raw.lastIndexOf("}");
+    if (a > 0 || b >= 0 && b < raw.length - 1)
+      raw = raw.slice(a, b + 1);
+    try {
+      s = JSON.parse(raw);
+    } catch (e) {
+      alert(t("Die Datei ist keine g\xFCltige Sicherung.") + `
+
+${file.name} \xB7 ${file.size} Bytes \xB7 ${file.type || "?"}
+${t("Anfang")}: ${txt.slice(0, 60).replace(/\s+/g, " ")}
+${e?.message || e}`);
+      return;
+    }
+    if (!s || typeof s !== "object" || !s.states || !s.params) {
+      alert(t("Die Datei ist keine g\xFCltige Sicherung.") + `
+
+${file.name}: ${t("Perioden oder Rahmendaten fehlen.")}`);
+      return;
+    }
+    const old = store;
+    try {
       store = migrate(s);
-      persist();
       setLang(store.lang || "de");
       render();
+      persist();
       toast(t("Sicherung importiert"));
-    } catch {
-      alert(t("Die Datei ist keine g\xFCltige Sicherung."));
+    } catch (e) {
+      store = old;
+      try {
+        render();
+      } catch {
+      }
+      alert(t("Die Sicherung konnte nicht geladen werden.") + `
+
+${e?.message || e}`);
     }
   }
   document.addEventListener("dragover", (e) => {

@@ -1,5 +1,9 @@
 # Änderungen
 
+## 1.3.2 – 03.11.2026
+- Sicherung importieren ist toleranter: Byte-Order-Mark, Leerzeichen oder Text rund um die Daten stören nicht mehr.
+- Klappt der Import nicht, nennt die Meldung jetzt den Grund (Dateiname, Größe, Dateianfang, Fehler). Ein fehlgeschlagener Import lässt die bisherigen Daten unverändert.
+
 ## 1.3.1 – 03.11.2026
 - Sicherung importieren klappt jetzt auch auf Android: Die Dateiauswahl filtert nicht mehr nach Dateityp (Android erkennt .json oft nicht), geprüft wird stattdessen der Inhalt.
 - Ältere Sicherungen werden beim Import automatisch auf den aktuellen Stand gebracht.

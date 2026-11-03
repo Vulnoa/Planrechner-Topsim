@@ -7,7 +7,7 @@ import { downloadZip, downloadSingle, save, spickzettelPdf } from './pdf.js';
 import { t, setLang, getLang } from './i18n.js';
 import { calibrate, looCheck, forecast, firmsFromMarkt, defaultProgSettings, PRIOR } from './prognose.js';
 
-const VERSION = '1.3.1';
+const VERSION = '1.3.2';
 const KEY = 'tonwerk-planrechner-v1';
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -1130,8 +1130,20 @@ async function readFiles(files) {
   pending = analyse(txt); render();
 }
 async function importBackup(file) {
-  try { if (!file) return; const s = JSON.parse(await file.text()); if (!s.states || !s.params) throw new Error(); store = migrate(s); persist(); setLang(store.lang || 'de'); render(); toast(t('Sicherung importiert')); }
-  catch { alert(t('Die Datei ist keine gültige Sicherung.')); }
+  if (!file) return;
+  let txt = '', s;
+  try { txt = await file.text(); } catch (e) { alert(t('Die Datei konnte nicht gelesen werden.') + `\n\n${file.name} · ${file.size} Bytes\n${e?.message || e}`); return; }
+  // BOM, Leerzeichen oder Text drumherum (z. B. vom Download aus einer App) entfernen
+  let raw = txt.replace(/^\uFEFF/, '').trim();
+  const a = raw.indexOf('{'), b = raw.lastIndexOf('}');
+  if (a > 0 || (b >= 0 && b < raw.length - 1)) raw = raw.slice(a, b + 1);
+  try { s = JSON.parse(raw); } catch (e) {
+    alert(t('Die Datei ist keine gültige Sicherung.') + `\n\n${file.name} · ${file.size} Bytes · ${file.type || '?'}\n${t('Anfang')}: ${txt.slice(0, 60).replace(/\s+/g, ' ')}\n${e?.message || e}`); return;
+  }
+  if (!s || typeof s !== 'object' || !s.states || !s.params) { alert(t('Die Datei ist keine gültige Sicherung.') + `\n\n${file.name}: ${t('Perioden oder Rahmendaten fehlen.')}`); return; }
+  const old = store;
+  try { store = migrate(s); setLang(store.lang || 'de'); render(); persist(); toast(t('Sicherung importiert')); }
+  catch (e) { store = old; try { render(); } catch {} alert(t('Die Sicherung konnte nicht geladen werden.') + `\n\n${e?.message || e}`); }
 }
 document.addEventListener('dragover', (e) => { const d = e.target.closest?.('#drop'); if (d) { e.preventDefault(); d.classList.add('over'); } });
 document.addEventListener('dragleave', (e) => { e.target.closest?.('#drop')?.classList.remove('over'); });
