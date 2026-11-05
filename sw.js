@@ -1,5 +1,5 @@
 // Offline-Cache der App. Neue Version: CACHE-Namen erhöhen.
-const CACHE = 'planrechner-1.3.3';
+const CACHE = 'planrechner-1.3.4';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'css/app.css', 'js/app.bundle.js', 'img/logo.svg', 'img/icon-192.png', 'img/icon-512.png', 'img/icon-maskable-512.png',
   'vendor/jspdf.umd.min.js', 'vendor/jspdf.plugin.autotable.min.js', 'vendor/jszip.min.js', 'vendor/pdf.min.js', 'vendor/pdf.worker.min.js'];
 // Neue Version sofort aktivieren (die Seite lädt danach automatisch neu)

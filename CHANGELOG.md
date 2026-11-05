@@ -1,5 +1,11 @@
 # Änderungen
 
+## 1.3.4 – 05.11.2026
+- Import repariert: Das Entscheidungsprotokoll im neuen PDF-Layout (Spalten „P 0 … P 3“, umbrochene Bezeichnungen) wurde nicht gelesen. Dadurch rechnete die App eine importierte Periode ohne Preis, Werbung und Fertigung nach. Gilt für Sammel- und Einzelberichte.
+- Kundenbetreuer im Einzelhandel werden aus dem Protokoll übernommen.
+- Beim Nachrechnen gelten die importierten Ist-Werte (Absatz, Kundenbetreuer) vor den Protokollwerten.
+- Neuer Test für das Lesen des Entscheidungsprotokolls.
+
 ## 1.3.3 – 03.11.2026
 - Updates kommen zuverlässig an: Eine neue Version übernimmt sofort, die App sucht beim Zurückkehren und alle 30 Minuten danach, und „Neu laden“ zeigt direkt die neue Version.
 - Übergibt Android eine Sicherungsdatei leer (0 Bytes), erklärt die Meldung jetzt, wie man sie trotzdem auswählt.

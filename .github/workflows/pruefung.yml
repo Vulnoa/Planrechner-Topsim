@@ -25,6 +25,8 @@ jobs:
         run: node test/engine.test.mjs
       - name: Absatzprognose kalibrieren
         run: node test/prognose.test.mjs
+      - name: Entscheidungsprotokoll lesen (beide PDF-Layouts)
+        run: node test/import.test.mjs
 
   virenscan:
     name: Virenscan (ClamAV)

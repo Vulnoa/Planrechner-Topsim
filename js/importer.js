@@ -214,14 +214,25 @@ export function parseReports(text) {
   // ---------- Entscheidungsprotokoll → Entscheidungen je Periode ----------
   if (B['19']) {
     const t = B['19'];
-    const hp = [...new Set((t.match(/\bP(\d+)\b/g) || []).map((s) => Number(s.slice(1))))].sort((a, b) => a - b);
+    // Spaltenköpfe „P0 P1 …“ oder „P 0 P 1 …“ (je nach PDF-Version)
+    const hp = [...new Set((t.match(/\bP\s?(\d+)\b/g) || []).map((s) => Number(s.replace(/\D/g, ''))))].sort((a, b) => a - b);
     const dec = {};
-    const take = (key, label, opt) => { const v = nums(t, label, opt); if (!v) return; const vv = v.slice(-hp.length); vv.forEach((x, i) => { (dec[hp[hp.length - vv.length + i]] ||= {})[key] = x; }); };
-    take('preisOnline', 'Preis Online-Markt'); take('werbungOnline', 'Werbung Online-'); take('kbOnline', 'Kundenbetreuer', {});
-    take('ci', 'Corporate Identity'); take('levelUp', 'Produktqualität Level'); take('gaMenge', 'Großabnehmer ');
-    take('einkauf', 'Einsatzstoffe/Teile'); take('fertigung', 'Fertigungsmenge'); take('investA', 'Investition (Anz. neue', { nth: 0 });
-    take('investB', 'Investition (Anz. neue', { nth: 1 }); take('fertigungMA', 'Fertigungspersonal');
-    take('preisEH', 'Preis Einzelhandel'); take('werbungEH', 'Werbung Einzelhandel');
+    // Bezeichnungen stehen je nach PDF in einer Zeile oder umbrochen → mehrere Varianten probieren
+    const take = (key, labels, opt) => {
+      for (const label of [].concat(labels)) {
+        const v = nums(t, label, opt); if (!v || !hp.length) continue;
+        const vv = v.slice(-hp.length); vv.forEach((x, i) => { (dec[hp[hp.length - vv.length + i]] ||= {})[key] = x; });
+        return;
+      }
+    };
+    take('preisOnline', 'Preis Online-Markt'); take('werbungOnline', 'Werbung Online-'); take('kbOnline', 'Kundenbetreuer', {}); take('kbEH', 'Kundenbetreuer', { nth: 1 });
+    take('ci', 'Corporate Identity'); take('levelUp', ['Produktqualität Level', 'Produktqualität']); take('gaMenge', 'Großabnehmer ');
+    take('einkauf', 'Einsatzstoffe/Teile'); take('fertigung', 'Fertigungsmenge');
+    take('investA', ['Investition (Anz. neue Anlagen) Typ A', 'Investition (Anz. Typ A']);
+    take('investB', ['Investition (Anz. neue Anlagen) Typ B', 'Investition (Anz. Typ B']);
+    if (dec[hp[0]]?.investA === undefined) { take('investA', 'Investition (Anz. neue', { nth: 0 }); take('investB', 'Investition (Anz. neue', { nth: 1 }); }
+    take('fertigungMA', 'Fertigungspersonal');
+    take('preisEH', 'Preis Einzelhandel'); take('werbungEH', ['Werbung Einzelhandel', 'Werbung Superbass']);
     out.decisions = dec;
   }
   if (!out.found.length) out.warnings.push('Keine TOPSIM-Berichte erkannt. Bitte den Sammelbericht als PDF hochladen oder den Text vollständig einfügen.');
@@ -233,7 +244,7 @@ export function stateFromImport(x, prev) {
   if (!x.bilanz || !x.fe || !x.staff || !x.machines) return null;
   const comp = x.hkComp; const tot = comp ? comp.varMat + comp.fixMat + comp.varFert + comp.fixFert : 0;
   const share = (k) => tot ? x.fe.value * comp[k] / tot : (k === 'varMat' ? x.fe.value : 0);
-  const kbEH = prev?.staff?.kbEH ?? 0;
+  const kbEH = x.decisions?.[x.period]?.kbEH ?? prev?.staff?.kbEH ?? 0;
   return {
     period: x.period, level: x.level ?? prev?.level ?? 1, preisOnline: x.preisOnline ?? prev?.preisOnline ?? 0, preisEH: x.preisEH ?? 0,
     fe: { qty: x.fe.qty, varMat: share('varMat'), fixMat: share('fixMat'), varFert: share('varFert'), fixFert: share('fixFert') },

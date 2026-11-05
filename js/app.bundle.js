@@ -1575,31 +1575,39 @@
     }
     if (B["19"]) {
       const t2 = B["19"];
-      const hp = [...new Set((t2.match(/\bP(\d+)\b/g) || []).map((s) => Number(s.slice(1))))].sort((a, b) => a - b);
+      const hp = [...new Set((t2.match(/\bP\s?(\d+)\b/g) || []).map((s) => Number(s.replace(/\D/g, ""))))].sort((a, b) => a - b);
       const dec = {};
-      const take = (key, label, opt) => {
-        const v = nums(t2, label, opt);
-        if (!v)
+      const take = (key, labels, opt) => {
+        for (const label of [].concat(labels)) {
+          const v = nums(t2, label, opt);
+          if (!v || !hp.length)
+            continue;
+          const vv = v.slice(-hp.length);
+          vv.forEach((x, i) => {
+            var _a;
+            (dec[_a = hp[hp.length - vv.length + i]] || (dec[_a] = {}))[key] = x;
+          });
           return;
-        const vv = v.slice(-hp.length);
-        vv.forEach((x, i) => {
-          var _a;
-          (dec[_a = hp[hp.length - vv.length + i]] || (dec[_a] = {}))[key] = x;
-        });
+        }
       };
       take("preisOnline", "Preis Online-Markt");
       take("werbungOnline", "Werbung Online-");
       take("kbOnline", "Kundenbetreuer", {});
+      take("kbEH", "Kundenbetreuer", { nth: 1 });
       take("ci", "Corporate Identity");
-      take("levelUp", "Produktqualit\xE4t Level");
+      take("levelUp", ["Produktqualit\xE4t Level", "Produktqualit\xE4t"]);
       take("gaMenge", "Gro\xDFabnehmer ");
       take("einkauf", "Einsatzstoffe/Teile");
       take("fertigung", "Fertigungsmenge");
-      take("investA", "Investition (Anz. neue", { nth: 0 });
-      take("investB", "Investition (Anz. neue", { nth: 1 });
+      take("investA", ["Investition (Anz. neue Anlagen) Typ A", "Investition (Anz. Typ A"]);
+      take("investB", ["Investition (Anz. neue Anlagen) Typ B", "Investition (Anz. Typ B"]);
+      if (dec[hp[0]]?.investA === void 0) {
+        take("investA", "Investition (Anz. neue", { nth: 0 });
+        take("investB", "Investition (Anz. neue", { nth: 1 });
+      }
       take("fertigungMA", "Fertigungspersonal");
       take("preisEH", "Preis Einzelhandel");
-      take("werbungEH", "Werbung Einzelhandel");
+      take("werbungEH", ["Werbung Einzelhandel", "Werbung Superbass"]);
       out.decisions = dec;
     }
     if (!out.found.length)
@@ -1612,7 +1620,7 @@
     const comp = x.hkComp;
     const tot = comp ? comp.varMat + comp.fixMat + comp.varFert + comp.fixFert : 0;
     const share = (k) => tot ? x.fe.value * comp[k] / tot : k === "varMat" ? x.fe.value : 0;
-    const kbEH = prev?.staff?.kbEH ?? 0;
+    const kbEH = x.decisions?.[x.period]?.kbEH ?? prev?.staff?.kbEH ?? 0;
     return {
       period: x.period,
       level: x.level ?? prev?.level ?? 1,
@@ -2125,7 +2133,7 @@
   }
 
   // js/app.js
-  var VERSION = "1.3.3";
+  var VERSION = "1.3.4";
   var KEY = "tonwerk-planrechner-v1";
   var $ = (s, el = document) => el.querySelector(s);
   var esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -2687,7 +2695,7 @@
       const R = simulate(store.states[p - 1], inp.P, inp.D);
       const decHist = { ...store.decHist };
       delete decHist[p];
-      const reps2 = buildReports(R, { ...base, decHist, P: inp.P, D: { ...inp.D, ...store.decHist[p] || {} }, S: store.states[p - 1], ist: true });
+      const reps2 = buildReports(R, { ...base, decHist, P: inp.P, D: { ...store.decHist[p] || {}, ...inp.D }, S: store.states[p - 1], ist: true });
       return { R, reports: reps2, check: store.history[p] ? { ju: store.history[p].ju, sim: R.guv.ju } : null };
     }
     const reps = [execSummary(p, store.history)];
@@ -2835,7 +2843,7 @@
     } else if (x.history?.[p])
       d.absatzOnline = x.history[p].absatz;
     if (d.ehAktiv) {
-      d.kbEH = store.states[p]?.staff?.kbEH ?? d.kbEH;
+      d.kbEH = x.decisions?.[p]?.kbEH ?? store.states[p]?.staff?.kbEH ?? d.kbEH;
       d.kbOnline = (x.staff?.kb ?? 0) - d.kbEH;
     }
     d.sonstErtrag = x.sonstErtrag || 0;

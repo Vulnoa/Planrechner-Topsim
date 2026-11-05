@@ -7,7 +7,7 @@ import { downloadZip, downloadSingle, save, spickzettelPdf } from './pdf.js';
 import { t, setLang, getLang } from './i18n.js';
 import { calibrate, looCheck, forecast, firmsFromMarkt, defaultProgSettings, PRIOR } from './prognose.js';
 
-const VERSION = '1.3.3';
+const VERSION = '1.3.4';
 const KEY = 'tonwerk-planrechner-v1';
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -426,7 +426,7 @@ function reportsFor(p) {
   if (inp && store.states[p - 1]) {
     const R = simulate(store.states[p - 1], inp.P, inp.D);
     const decHist = { ...store.decHist }; delete decHist[p];
-    const reps = buildReports(R, { ...base, decHist, P: inp.P, D: { ...inp.D, ...(store.decHist[p] || {}) }, S: store.states[p - 1], ist: true });
+    const reps = buildReports(R, { ...base, decHist, P: inp.P, D: { ...(store.decHist[p] || {}), ...inp.D }, S: store.states[p - 1], ist: true });
     return { R, reports: reps, check: store.history[p] ? { ju: store.history[p].ju, sim: R.guv.ju } : null };
   }
   // nur Kennzahlen und Bilanz vorhanden
@@ -538,7 +538,7 @@ function applyImport(x) {
   const pr = x.preisOnline || d.preisOnline;
   if (x.umsatzKanal) { d.absatzOnline = pr ? Math.round(x.umsatzKanal.online * 1000 / pr) : 0; d.absatzEH = x.preisEH ? Math.round(x.umsatzKanal.eh * 1000 / x.preisEH) : 0; d.ehAktiv = d.absatzEH > 0 || d.ehAktiv; }
   else if (x.history?.[p]) d.absatzOnline = x.history[p].absatz;
-  if (d.ehAktiv) { d.kbEH = store.states[p]?.staff?.kbEH ?? d.kbEH; d.kbOnline = (x.staff?.kb ?? 0) - d.kbEH; }
+  if (d.ehAktiv) { d.kbEH = x.decisions?.[p]?.kbEH ?? store.states[p]?.staff?.kbEH ?? d.kbEH; d.kbOnline = (x.staff?.kb ?? 0) - d.kbEH; }
   d.sonstErtrag = x.sonstErtrag || 0;
   store.istInputs[p] = { P, D: d };
   ensurePeriod(planPeriod());
