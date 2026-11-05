@@ -20,6 +20,14 @@ export function staffelPreis(staffel, menge) {
   return p;
 }
 
+// Erfolgswert-Schätzung (TOPSIM veröffentlicht die Formel nicht; Koeffizienten aus Regression, in der App änderbar)
+export const EW_DEFAULT = { a: 85.088, ju: 0.403, ek: 0, level: 10.729, fkq: -0.695, bek: 2.554 };
+export const EW_ALT = { a: -33, ju: 0.36, ek: 0.071, level: 13.9 };
+export function ewEstimate(P, { ju = 0, ek = 0, level = 0, fkq = 0, bek }) {
+  const E = P.erfolgswert || EW_DEFAULT, B = bek ?? P.bekanntheit ?? 0;
+  return (E.a || 0) + (E.ju || 0) * ju + (E.ek || 0) * ek + (E.level || 0) * level + (E.fkq || 0) * fkq + (E.bek || 0) * B;
+}
+
 export function qualKosten(P, level) {
   const t = P.qualKosten;
   return t[Math.min(Math.max(level, 1), t.length) - 1];
@@ -325,8 +333,7 @@ export function simulate(S, P, D, C = { fields: [], values: {} }) {
     ekRendite: ekVor ? ju / ekVor * 100 : 0, umsatzRendite: umsatz ? ju / umsatz * 100 : 0,
     fkQuote: bil.passiva ? bil.fk / bil.passiva * 100 : 0, ek, db5Stk: sold ? R.db.db5 / sold * 1000 : 0,
   };
-  const E = P.erfolgswert;
-  R.kpi.erfolgswert = E.a + E.ju * ju + E.ek * ek + E.level * level;
+  R.kpi.erfolgswert = ewEstimate(P, { ju, ek, level, fkq: R.kpi.fkQuote });
 
   // ---------- Endstand für die Folgeperiode ----------
   R.endState = {

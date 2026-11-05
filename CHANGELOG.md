@@ -1,5 +1,10 @@
 # Änderungen
 
+## 1.3.6 – 05.11.2026
+- Übersicht KPIs: Die Spalte „Vorperiode“ zeigt Online-, Einzelhandels- und Großabnehmer-Absatz sowie die Auslastung der Fertigungsmitarbeiter auch dann richtig, wenn der TOPSIM-Bericht sie umbrochen druckt. Fehlende Werte kommen aus der nachgerechneten Vorperiode.
+- Import liest aus der Executive Summary jetzt auch Absatz je Kanal, die umbrochene Auslastung und die geplante Fertigungsmenge.
+- Neue Erfolgswert-Schätzung als Standard: Konstante, Jahresüberschuss, Fremdkapitalquote, Produktqualität und Bekanntheit im Online-Markt. Die Bekanntheit wird aus der letzten Marktforschung vorbelegt. Selbst geänderte Gewichte bleiben erhalten.
+
 ## 1.3.5 – 05.11.2026
 - Neu unter „Rahmendaten der Periode“: Block „Neue Daten dieser Periode“ mit genau den Werten aus dem TOPSIM-Fenster „Neue Daten“: Gehälter, Zinssätze und Zahlungsquote in Prozent, Produktivität und das Großabnehmer-Angebot. Ein Großabnehmer-Angebot oder ein Kreditzins schaltet das passende Eingabefeld in den Masken frei.
 - In den Eingabemasken erinnert ein Knopf daran, solange die neuen Daten der Periode noch nicht eingetragen oder bestätigt sind.

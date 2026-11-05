@@ -17,7 +17,10 @@ export const REPORT_LIST = [
 ];
 
 function kpis(R, ctx) {
-  const h = ctx.history[R.period - 1] || {};
+  // Vorperiode: TOPSIM-Kennzahlen; was dort fehlt, aus der nachgerechneten Vorperiode (stimmt exakt mit TOPSIM überein)
+  const pk = ctx.prevKpi || {}, h0 = ctx.history[R.period - 1] || {};
+  const h = { ...pk, ...Object.fromEntries(Object.entries(h0).filter(([, v]) => v !== undefined && v !== null)) };
+  if (h0.absatzOnline === undefined && pk.absatzOnline !== undefined) { h.absatzOnline = pk.absatzOnline; h.absatzEH = pk.absatzEH; h.absatzGA = pk.absatzGA; }
   const r = (l, u, a, b, f = 2) => row(l, u, [a, b], f);
   return { id: '01', title: 'Übersicht KPIs', tables: [{ cols: ['Vorperiode', 'Aktuelle Periode'], rows: [
     r('Periodenüberschuss/-fehlbetrag', 'TEUR', h.ju, R.kpi.ju),
@@ -317,12 +320,14 @@ function erfolgswert(R, P, ctx) {
   const E = P.erfolgswert, h = ctx.history;
   const prev = h[R.period - 1]?.erfolgswert;
   return { id: 'EW', title: 'Erfolgswert-Schätzung',
-    note: 'TOPSIM veröffentlicht die Erfolgswert-Formel nicht. Die Schätzung ist eine Regression über die Ergebnisse aller Unternehmen aus P1 und P2 (Abweichung ca. ±12 Punkte). Planungsqualität, Bekanntheit und Fremdkapitalquote fließen nur indirekt ein. Die Koeffizienten lassen sich unter Einstellungen anpassen.',
+    note: 'TOPSIM veröffentlicht die Erfolgswert-Formel nicht. Die Schätzung ist eine Regression über die Ergebnisse aller Unternehmen aus P1 bis P3 (Kreuztest ca. ±13 Punkte). Gewichte und Bekanntheit lassen sich unter „Rahmendaten der Periode“ anpassen.',
     tables: [{ cols: ['Wert', 'Gewicht', 'Beitrag'], noUnit: true, rows: [
       { l: 'Konstante', v: ['', '', E.a], f: 2 },
       { l: 'Jahresüberschuss (TEUR)', v: [R.guv.ju, nf(E.ju, 3), E.ju * R.guv.ju], f: 2 },
-      { l: 'Eigenkapital (TEUR)', v: [R.bilanz.ek, nf(E.ek, 3), E.ek * R.bilanz.ek], f: 2 },
-      { l: 'Produktqualität (Level)', v: [nf(R.level.cur, 0), nf(E.level, 1), E.level * R.level.cur], f: 2 },
+      ...(E.ek ? [{ l: 'Eigenkapital (TEUR)', v: [R.bilanz.ek, nf(E.ek, 3), E.ek * R.bilanz.ek], f: 2 }] : []),
+      ...(E.fkq ? [{ l: 'Fremdkapitalquote (%)', v: [R.kpi.fkQuote, nf(E.fkq, 3), E.fkq * R.kpi.fkQuote], f: 2 }] : []),
+      { l: 'Produktqualität (Level)', v: [nf(R.level.cur, 0), nf(E.level, 3), E.level * R.level.cur], f: 2 },
+      ...(E.bek ? [{ l: 'Bekanntheit Online-Markt (Index)', v: [P.bekanntheit ?? 0, nf(E.bek, 3), E.bek * (P.bekanntheit ?? 0)], f: 2 }] : []),
       { l: '= Geschätzter Erfolgswert', v: ['', '', R.kpi.erfolgswert], f: 2, b: true },
       { l: 'Erfolgswert Vorperiode (TOPSIM)', v: ['', '', prev ?? ''], f: 2 },
     ] }] };

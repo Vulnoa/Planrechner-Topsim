@@ -1,5 +1,5 @@
 // TONWERK Planrechner – Oberfläche
-import { simulate } from './engine.js';
+import { simulate, ewEstimate, EW_DEFAULT, EW_ALT } from './engine.js';
 import * as DEF from './defaults.js';
 import { buildReports, execSummary, bilanzReport, REPORT_LIST, nf } from './reports.js';
 import { parseReports, pdfToText, stateFromImport } from './importer.js';
@@ -7,7 +7,7 @@ import { downloadZip, downloadSingle, save, spickzettelPdf } from './pdf.js';
 import { t, setLang, getLang } from './i18n.js';
 import { calibrate, looCheck, forecast, firmsFromMarkt, defaultProgSettings, PRIOR } from './prognose.js';
 
-const VERSION = '1.3.5';
+const VERSION = '1.3.6';
 const KEY = 'tonwerk-planrechner-v1';
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -35,12 +35,26 @@ function initialStore() {
     v2: true, calcMode: 'save', module: {}, prog: {}, konk: {}, opt: {}, konkV: 2, welcome: true,
   };
 }
+// Eigene Bekanntheit online aus der letzten Marktforschung vor Periode p
+function lastOwnBek(p, s = store) {
+  for (let q = p - 1; q >= 0; q--) { const f = firmsFromMarkt(s?.markt?.[q]); if (f) { const m = /(\d+)/.exec(s.unternehmen || ''); const i = m ? Number(m[1]) - 1 : 0; if (f[i]) return f[i].B; } }
+  return null;
+}
 // Ältere Speicherstände (v1.0) auf den neuen Stand bringen, ohne Eingaben zu verlieren
 function migrate(s) {
   s.markt ||= {};
   for (const [p, m] of Object.entries(DEF.MARKT)) if (!s.markt[p]?.rows) s.markt[p] = clone(m);
   s.calcMode ||= 'save'; s.module ||= {}; s.prog ||= {}; s.konk ||= {}; s.opt ||= {};
   if (s.konkV !== 2) { s.konk = {}; s.konkV = 2; }   // Konkurrenz-Vorbelegung v1.1.3: Preise nicht mehr fortgeschrieben
+  // v1.3.6: neue Erfolgswert-Schätzung (mit Fremdkapitalquote und Bekanntheit); selbst geänderte Gewichte bleiben
+  if (s.ewV !== 2) {
+    for (const [p, P] of Object.entries(s.params || {})) {
+      const E = P.erfolgswert || {};
+      if (!P.erfolgswert || Object.keys(EW_ALT).every((k) => Math.abs((E[k] ?? 0) - EW_ALT[k]) < 1e-9)) P.erfolgswert = { ...EW_DEFAULT };
+      if (P.bekanntheit === undefined) { const b = lastOwnBek(Number(p), s); P.bekanntheit = b ?? 50; }
+    }
+    s.ewV = 2;
+  }
   s.v2 = true;
   return s;
 }
@@ -52,7 +66,7 @@ const ui = { route: 'vertrieb', repPeriod: null, repId: '01', menu: false, scOpe
 
 const planPeriod = () => Math.max(...Object.keys(store.states).map(Number)) + 1;
 function ensurePeriod(p) {
-  if (!store.params[p]) store.params[p] = clone(store.params[p - 1] || DEF.baseParams());
+  if (!store.params[p]) { store.params[p] = clone(store.params[p - 1] || DEF.baseParams()); const b = lastOwnBek(p); if (b !== null) store.params[p].bekanntheit = b; }
   store.paramCustom[p] ||= {};
   if (!store.scenarios[p] || !store.scenarios[p].length) {
     const prev = (store.scenarios[p - 1] || []).find((s) => s.team) || (store.scenarios[p - 1] || [])[0];
@@ -242,7 +256,9 @@ const PARAMS = { title: 'Rahmendaten der Periode', sections: [
     { p: 'zahlQuote', l: 'Zahlungseingang in der Periode (Anteil)', d: 2 }, { p: 'minKasse', l: 'Mindest-Kassenbestand (TEUR)', d: 2 }] },
   { id: 'p-erfolg', h: 'Erfolgswert-Schätzung', fields: [
     { p: 'erfolgswert.a', l: 'Konstante', d: 2 }, { p: 'erfolgswert.ju', l: 'Gewicht Jahresüberschuss', d: 3 },
-    { p: 'erfolgswert.ek', l: 'Gewicht Eigenkapital', d: 3 }, { p: 'erfolgswert.level', l: 'Gewicht Produktqualität (je Level)', d: 2 }] },
+    { p: 'erfolgswert.ek', l: 'Gewicht Eigenkapital', d: 3 }, { p: 'erfolgswert.level', l: 'Gewicht Produktqualität (je Level)', d: 3 },
+    { p: 'erfolgswert.fkq', l: 'Gewicht Fremdkapitalquote (je %-Punkt)', d: 3 }, { p: 'erfolgswert.bek', l: 'Gewicht Bekanntheit Online-Markt', d: 3 },
+    { p: 'bekanntheit', l: 'Bekanntheit Online-Markt (Index, vorbelegt aus der letzten Marktforschung)', d: 2 }] },
 ] };
 
 const getPath = (o, p) => p.split('.').reduce((x, k) => x?.[k], o);
@@ -427,9 +443,16 @@ function reportHtml(rep) {
   return h + `</div>`;
 }
 
+// Kennzahlen der Vorperiode aus der Nachrechnung (ergänzt fehlende Werte im TOPSIM-Kennzahlenbericht)
+function prevKpiOf(p) {
+  const pi = store.istInputs[p - 1];
+  if (!pi || !store.states[p - 2]) return null;
+  try { return simulate(store.states[p - 2], pi.P, pi.D).kpi; } catch { return null; }
+}
 function reportsFor(p) {
   const plan = planPeriod();
-  const base = { history: store.history, decHist: store.decHist, unternehmen: store.unternehmen, markt: store.markt[p], branche: store.branche[p] };
+  const prevKpi = prevKpiOf(p);
+  const base = { history: store.history, decHist: store.decHist, unternehmen: store.unternehmen, markt: store.markt[p], branche: store.branche[p], prevKpi };
   if (p === plan) {
     const R = runPlan();
     return { R, plan: true, reports: buildReports(R, { ...base, P: store.params[p], D: effDec(calcSrc().decisions), S: store.states[p - 1] }) };
@@ -474,7 +497,7 @@ function renderBerichte() {
 
 function renderKpi() {
   const R = runPlan(), p = planPeriod();
-  const reps = buildReports(R, { history: store.history, decHist: store.decHist, unternehmen: store.unternehmen, P: store.params[p], D: effDec(calcSrc().decisions), S: store.states[p - 1] });
+  const reps = buildReports(R, { history: store.history, decHist: store.decHist, unternehmen: store.unternehmen, prevKpi: prevKpiOf(p), P: store.params[p], D: effDec(calcSrc().decisions), S: store.states[p - 1] });
   return `<div class="row"><span class="badge">${t('Szenario')}: ${esc(scen().name)}</span>${dirty() ? `<span class="badge bad">${t('Nicht gespeichert')}</span>` : ''}
     <button class="btn small" data-route="berichte">${t('Zum Berichtswesen')}</button></div>${reportHtml(reps[0])}
     ${R.warnings.length ? `<div class="note">⚠ ${R.warnings.map((w) => esc(t(w))).join('<br>⚠ ')}</div>` : ''}${reportHtml(reps.find((r) => r.id === 'EW'))}`;
@@ -871,8 +894,8 @@ function renderPlanIst() {
     let planJu = null;
     const inp = store.istInputs[p];
     if (inp && store.states[p - 1] && dh.preisOnline) planJu = simulate(store.states[p - 1], inp.P, { ...inp.D, absatzOnline: dh.absatzOnline, absatzEH: dh.absatzEH || 0 }).kpi.ju;
-    const E = (store.params[planPeriod()] || DEF.baseParams()).erfolgswert;
-    const ewSchatz = his.ju !== undefined ? E.a + E.ju * his.ju + E.ek * (his.ek || 0) + E.level * (his.level || 0) : null;
+    const PP = store.params[p] || store.params[planPeriod()] || DEF.baseParams();
+    const ewSchatz = his.ju !== undefined ? ewEstimate({ ...PP, erfolgswert: (store.params[planPeriod()] || PP).erfolgswert }, { ju: his.ju, ek: his.ek || 0, level: his.level || store.states[p]?.level || 0, fkq: his.fkQuote || 0, bek: lastOwnBek(p + 1) ?? PP.bekanntheit }) : null;
     return { p, planAbs, ist: his.absatz, pot, model, planJu, ju: his.ju, ew: his.erfolgswert, ewSchatz };
   });
   const pct = (a, b) => (a && b ? `${nf((a / b - 1) * 100, 1)} %` : '–');

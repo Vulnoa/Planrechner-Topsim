@@ -24,7 +24,7 @@ export function baseParams() {
     qualKosten: [...QUAL_KOSTEN], fueProLevel: 100, maxLevelUp: 2,
     zinsDispo: 0.06, zinsLang: 0.04, zinsKurz: 0.05, steuer: 0.35, zahlQuote: 0.80, minKasse: 10,
     einkaufTab: EINKAUF_TAB.map((r) => [...r]), verwaltungTab: VERWALTUNG_TAB.map((r) => [...r]),
-    erfolgswert: { a: -33, ju: 0.36, ek: 0.071, level: 13.9 },
+    erfolgswert: { a: 85.088, ju: 0.403, ek: 0, level: 10.729, fkq: -0.695, bek: 2.554 }, bekanntheit: 50,
   };
 }
 

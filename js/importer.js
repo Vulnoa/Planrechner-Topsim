@@ -86,8 +86,10 @@ export function parseReports(text) {
     };
     take('erfolgswert', 'Erfolgswert'); take('umsatz', 'Umsatz Gesamt'); take('ju', 'Periodenüberschuss/-');
     take('absatz', 'Absatz Gesamt'); take('absatzPlan', 'Geplanter Absatz'); take('marktanteil', 'Marktanteil');
-    take('fertPlan', 'Geplante Fertigungsmenge'); take('fertIst', ['Tatsächliche Fertigungsmenge', 'Tatsächliche Stück']); take('lager', 'Lagerendbestand');
-    take('auslMA', 'Auslastung Mitarbeiter'); take('auslAnlagen', 'Auslastung Anlagen'); take('hkStk', 'Herstellkosten');
+    take('absatzOnline', 'Tatsächlicher Absatz', { nth: 0 }); take('absatzEH', 'Tatsächlicher Absatz', { nth: 1 });
+    take('absatzPlanEH', 'Geplanter Absatz', { nth: 1 });
+    take('fertPlan', ['Geplante Fertigungsmenge', 'Geplante Stück']); take('fertIst', ['Tatsächliche Fertigungsmenge', 'Tatsächliche Stück']); take('lager', 'Lagerendbestand');
+    take('auslMA', ['Auslastung Mitarbeiter', 'Auslastung %']); take('auslAnlagen', 'Auslastung Anlagen'); take('hkStk', 'Herstellkosten');
     take('skStk', 'Selbstkosten'); take('db5Stk', 'Deckungsbeitrag V'); take('be', 'Betriebsergebnis'); take('ek', 'Eigenkapital ');
     take('ekRendite', 'Eigenkapitalrendite'); take('umsatzRendite', 'Umsatzrendite'); take('kasse', 'Kassenendbestand');
     take('dispo', 'Überziehungskredit'); take('finErg', 'Finanzergebnis'); take('fkQuote', 'Fremdkapitalquote');
