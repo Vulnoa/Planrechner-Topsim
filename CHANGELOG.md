@@ -1,5 +1,9 @@
 # Änderungen
 
+## 1.3.5 – 05.11.2026
+- Neu unter „Rahmendaten der Periode“: Block „Neue Daten dieser Periode“ mit genau den Werten aus dem TOPSIM-Fenster „Neue Daten“: Gehälter, Zinssätze und Zahlungsquote in Prozent, Produktivität und das Großabnehmer-Angebot. Ein Großabnehmer-Angebot oder ein Kreditzins schaltet das passende Eingabefeld in den Masken frei.
+- In den Eingabemasken erinnert ein Knopf daran, solange die neuen Daten der Periode noch nicht eingetragen oder bestätigt sind.
+
 ## 1.3.4 – 05.11.2026
 - Import repariert: Das Entscheidungsprotokoll im neuen PDF-Layout (Spalten „P 0 … P 3“, umbrochene Bezeichnungen) wurde nicht gelesen. Dadurch rechnete die App eine importierte Periode ohne Preis, Werbung und Fertigung nach. Gilt für Sammel- und Einzelberichte.
 - Kundenbetreuer im Einzelhandel werden aus dem Protokoll übernommen.

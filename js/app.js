@@ -7,7 +7,7 @@ import { downloadZip, downloadSingle, save, spickzettelPdf } from './pdf.js';
 import { t, setLang, getLang } from './i18n.js';
 import { calibrate, looCheck, forecast, firmsFromMarkt, defaultProgSettings, PRIOR } from './prognose.js';
 
-const VERSION = '1.3.4';
+const VERSION = '1.3.5';
 const KEY = 'tonwerk-planrechner-v1';
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -218,6 +218,7 @@ const MASKS = {
 };
 
 const PARAMS = { title: 'Rahmendaten der Periode', sections: [
+  { id: 'p-neu', h: 'Neue Daten dieser Periode (wie im TOPSIM-Fenster „Neue Daten“)', special: 'neu', fields: [] },
   { id: 'p-einkauf', h: 'Einkauf und Lager', fields: [
     { p: 'jitPreis', l: 'Just-in-Time-Nachlieferung (EUR/Einheit)', d: 2 }, { p: 'betriebsstoff', l: 'Betriebsstoffe (EUR/Stück gefertigt)', d: 2 },
     { p: 'lagerMat', l: 'Lagerkosten Einsatzstoffe (EUR/Einheit)', d: 2 }, { p: 'lagerFE', l: 'Lagerkosten Fertigerzeugnisse (EUR/Stück)', d: 2 }], special: 'staffel' },
@@ -278,7 +279,8 @@ function renderMask(id) {
       <li>${t('Nach jeder Periode den TOPSIM-Sammelbericht als PDF unter „Daten & Import“ hineinziehen. Hast du schon eine Sicherungsdatei, dort „Sicherung importieren“ wählen.')}</li>
       <li>${t('Alle Daten bleiben nur in diesem Browser auf diesem Gerät.')}</li></ol>
       <button class="btn ghost small" data-tool="welcomeoff">${t('Verstanden, ausblenden')}</button></div>` : '';
-  h += `<div class="maskbar"><button class="btn ghost small" data-tool="spick" title="${esc(t('Alle gespeicherten Werte des Szenarios in der Reihenfolge der TOPSIM-Masken, zum Abtippen'))}">📄 ${t('Eingabe-Spickzettel (PDF)')}</button></div><div class="mask">`;
+  const neuP = planPeriod(), neuFehlt = neuP > 1 && !store.neuOk?.[neuP];
+  h += `<div class="maskbar"><button class="btn small ${neuFehlt ? 'warnbtn' : 'ghost'}" data-route="parameter" title="${esc(t('Gehälter, Zinsen, Zahlungsquote, Produktivität, Großabnehmer'))}">${neuFehlt ? '⚠ ' : ''}${t('Neue Daten Periode')} ${neuP}${neuFehlt ? ' ' + t('eintragen') : ''}</button> <button class="btn ghost small" data-tool="spick" title="${esc(t('Alle gespeicherten Werte des Szenarios in der Reihenfolge der TOPSIM-Masken, zum Abtippen'))}">📄 ${t('Eingabe-Spickzettel (PDF)')}</button></div><div class="mask">`;
   const hidden = [];
   for (const s of M.sections) {
     if (s.module && !mod[s.module].aktiv) { hidden.push(s.module); continue; }
@@ -331,6 +333,16 @@ function renderParams() {
   for (const s of PARAMS.sections) {
     h += `<h2>${esc(t(s.h))}<button class="btn ghost small add" data-addfield="${s.id}">+ ${esc(t('Feld'))}</button></h2>`;
     for (const f of s.fields || []) h += `<div class="frow"><label>${esc(t(f.l))}</label>${numInput('p:' + f.p, getPath(P, f.p), f.d)}<span></span></div>`;
+    if (s.special === 'neu') {
+      const m = modOf(p), nf2 = (k, v, l, d) => `<div class="frow"><label>${esc(t(l))}</label>${numInput(k, v, d)}<span></span></div>`;
+      h += `<p class="muted">${esc(t('Nach jeder Periode zeigt TOPSIM unter „Neue Daten“, was sich ändert. Hier eintragen, dann rechnen alle Szenarien damit.'))}</p>`;
+      h += nf2('pn:gehalt.einkauf', P.gehalt.einkauf, 'Gehalt Einkauf (TEUR/Person)', 2) + nf2('pn:gehalt.verwaltung', P.gehalt.verwaltung, 'Gehalt Verwaltung (TEUR/Person)', 2)
+        + nf2('pn:gehalt.fertigung', P.gehalt.fertigung, 'Lohn Fertigung (TEUR/Person)', 2) + nf2('pn:gehalt.kb', P.gehalt.kb, 'Gehalt Vertrieb/Kundenbetreuer (TEUR/Person)', 2)
+        + nf2('pnpct:zinsDispo', P.zinsDispo * 100, 'Zinssatz Überziehungskredit (%)', 2) + nf2('pnpct:zinsKurz', P.zinsKurz * 100, 'Zinssatz kurzfristiger Kredit (%)', 2)
+        + nf2('pnpct:zahlQuote', P.zahlQuote * 100, 'Zahlungsquote Geldeingang (%)', 2) + nf2('pn:prodMA', P.prodMA, 'Produktivität Fertigungs-MA (Stück/Person)', 0)
+        + nf2('mn:ga.max', m.ga.max, 'Großabnehmer: Menge laut Angebot (Stück, 0 = kein Angebot)', 0) + nf2('mn:ga.preis', m.ga.preis, 'Großabnehmer: Preis (EUR/Stück)', 2);
+      h += `<div class="row"><button class="btn small ${store.neuOk?.[p] ? 'ghost' : 'save'}" id="neuok">${store.neuOk?.[p] ? '✓ ' + t('Neue Daten bestätigt') : t('Neue Daten stimmen so')}</button></div>`;
+    }
     if (s.special === 'staffel') {
       h += `<h2 style="font-size:13px">${esc(t('Mengenstaffel Einsatzstoffe'))}</h2><table class="des"><tr><th>${t('ab Menge (Einheiten)')}</th><th>${t('Preis (EUR/Einheit)')}</th><th></th></tr>`;
       P.matStaffel.forEach(([ab, pr], i) => { h += `<tr><td>${numInput(`st:${i}:0`, ab, 0, 'class="field"')}</td><td>${numInput(`st:${i}:1`, pr, 2, 'class="field"')}</td>
@@ -1009,6 +1021,12 @@ document.addEventListener('input', (e) => {
   else if (k.startsWith('qk:')) store.params[p].qualKosten[k.slice(3)] = v;
   else if (k.startsWith('s:')) { const st = store.states[Number(ui.route.slice(6))]; setPath(st, k.slice(2), v); if (k === 's:staff.kbOnline' || k === 's:staff.kbEH') st.staff.kb = st.staff.kbOnline + st.staff.kbEH; }
   else if (k.startsWith('m:')) setPath(modOf(p), k.slice(2), v);
+  else if (k.startsWith('pn:') || k.startsWith('pnpct:') || k.startsWith('mn:')) {
+    if (k.startsWith('pn:')) setPath(store.params[p], k.slice(3), v);
+    else if (k.startsWith('pnpct:')) { setPath(store.params[p], k.slice(6), v / 100); if (k === 'pnpct:zinsKurz' && v > 0) modOf(p).kredit.aktiv = true; }
+    else { setPath(modOf(p), k.slice(3), v); const ga = modOf(p).ga; ga.aktiv = ga.max > 0; if (!ga.aktiv) D().gaMenge = 0; }
+    (store.neuOk ||= {})[p] = true;
+  }
   else if (k.startsWith('kk:') || k.startsWith('ps:') || k.startsWith('ol:') || k.startsWith('oc:') || k.startsWith('vs:')) { toolInput(k, v, el); return; }
   else {
     D()[k] = v;
@@ -1115,6 +1133,7 @@ document.addEventListener('click', async (e) => {
     case 'wipe': if (confirm(t('Wirklich alle Eingaben, Szenarien und importierten Daten löschen?'))) { store = initialStore(); persist(); render(); } break;
     case 'install': if (installEvt) { installEvt.prompt(); installEvt = null; } break;
     case 'upd': location.reload(); break;
+    case 'neuok': (store.neuOk ||= {})[p] = true; persist(); render(); break;
     default: break;
   }
 });

@@ -2133,7 +2133,7 @@
   }
 
   // js/app.js
-  var VERSION = "1.3.4";
+  var VERSION = "1.3.5";
   var KEY = "tonwerk-planrechner-v1";
   var $ = (s, el = document) => el.querySelector(s);
   var esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -2432,6 +2432,7 @@
     ] }
   };
   var PARAMS = { title: "Rahmendaten der Periode", sections: [
+    { id: "p-neu", h: "Neue Daten dieser Periode (wie im TOPSIM-Fenster \u201ENeue Daten\u201C)", special: "neu", fields: [] },
     { id: "p-einkauf", h: "Einkauf und Lager", fields: [
       { p: "jitPreis", l: "Just-in-Time-Nachlieferung (EUR/Einheit)", d: 2 },
       { p: "betriebsstoff", l: "Betriebsstoffe (EUR/St\xFCck gefertigt)", d: 2 },
@@ -2526,7 +2527,8 @@
       <li>${t("Nach jeder Periode den TOPSIM-Sammelbericht als PDF unter \u201EDaten & Import\u201C hineinziehen. Hast du schon eine Sicherungsdatei, dort \u201ESicherung importieren\u201C w\xE4hlen.")}</li>
       <li>${t("Alle Daten bleiben nur in diesem Browser auf diesem Ger\xE4t.")}</li></ol>
       <button class="btn ghost small" data-tool="welcomeoff">${t("Verstanden, ausblenden")}</button></div>` : "";
-    h += `<div class="maskbar"><button class="btn ghost small" data-tool="spick" title="${esc(t("Alle gespeicherten Werte des Szenarios in der Reihenfolge der TOPSIM-Masken, zum Abtippen"))}">\u{1F4C4} ${t("Eingabe-Spickzettel (PDF)")}</button></div><div class="mask">`;
+    const neuP = planPeriod(), neuFehlt = neuP > 1 && !store.neuOk?.[neuP];
+    h += `<div class="maskbar"><button class="btn small ${neuFehlt ? "warnbtn" : "ghost"}" data-route="parameter" title="${esc(t("Geh\xE4lter, Zinsen, Zahlungsquote, Produktivit\xE4t, Gro\xDFabnehmer"))}">${neuFehlt ? "\u26A0 " : ""}${t("Neue Daten Periode")} ${neuP}${neuFehlt ? " " + t("eintragen") : ""}</button> <button class="btn ghost small" data-tool="spick" title="${esc(t("Alle gespeicherten Werte des Szenarios in der Reihenfolge der TOPSIM-Masken, zum Abtippen"))}">\u{1F4C4} ${t("Eingabe-Spickzettel (PDF)")}</button></div><div class="mask">`;
     const hidden = [];
     for (const s of M.sections) {
       if (s.module && !mod[s.module].aktiv) {
@@ -2591,6 +2593,12 @@
       h += `<h2>${esc(t(s.h))}<button class="btn ghost small add" data-addfield="${s.id}">+ ${esc(t("Feld"))}</button></h2>`;
       for (const f of s.fields || [])
         h += `<div class="frow"><label>${esc(t(f.l))}</label>${numInput("p:" + f.p, getPath(P, f.p), f.d)}<span></span></div>`;
+      if (s.special === "neu") {
+        const m = modOf(p), nf2 = (k, v, l, d) => `<div class="frow"><label>${esc(t(l))}</label>${numInput(k, v, d)}<span></span></div>`;
+        h += `<p class="muted">${esc(t("Nach jeder Periode zeigt TOPSIM unter \u201ENeue Daten\u201C, was sich \xE4ndert. Hier eintragen, dann rechnen alle Szenarien damit."))}</p>`;
+        h += nf2("pn:gehalt.einkauf", P.gehalt.einkauf, "Gehalt Einkauf (TEUR/Person)", 2) + nf2("pn:gehalt.verwaltung", P.gehalt.verwaltung, "Gehalt Verwaltung (TEUR/Person)", 2) + nf2("pn:gehalt.fertigung", P.gehalt.fertigung, "Lohn Fertigung (TEUR/Person)", 2) + nf2("pn:gehalt.kb", P.gehalt.kb, "Gehalt Vertrieb/Kundenbetreuer (TEUR/Person)", 2) + nf2("pnpct:zinsDispo", P.zinsDispo * 100, "Zinssatz \xDCberziehungskredit (%)", 2) + nf2("pnpct:zinsKurz", P.zinsKurz * 100, "Zinssatz kurzfristiger Kredit (%)", 2) + nf2("pnpct:zahlQuote", P.zahlQuote * 100, "Zahlungsquote Geldeingang (%)", 2) + nf2("pn:prodMA", P.prodMA, "Produktivit\xE4t Fertigungs-MA (St\xFCck/Person)", 0) + nf2("mn:ga.max", m.ga.max, "Gro\xDFabnehmer: Menge laut Angebot (St\xFCck, 0 = kein Angebot)", 0) + nf2("mn:ga.preis", m.ga.preis, "Gro\xDFabnehmer: Preis (EUR/St\xFCck)", 2);
+        h += `<div class="row"><button class="btn small ${store.neuOk?.[p] ? "ghost" : "save"}" id="neuok">${store.neuOk?.[p] ? "\u2713 " + t("Neue Daten best\xE4tigt") : t("Neue Daten stimmen so")}</button></div>`;
+      }
       if (s.special === "staffel") {
         h += `<h2 style="font-size:13px">${esc(t("Mengenstaffel Einsatzstoffe"))}</h2><table class="des"><tr><th>${t("ab Menge (Einheiten)")}</th><th>${t("Preis (EUR/Einheit)")}</th><th></th></tr>`;
         P.matStaffel.forEach(([ab, pr], i) => {
@@ -3545,7 +3553,22 @@
         st.staff.kb = st.staff.kbOnline + st.staff.kbEH;
     } else if (k.startsWith("m:"))
       setPath(modOf(p), k.slice(2), v);
-    else if (k.startsWith("kk:") || k.startsWith("ps:") || k.startsWith("ol:") || k.startsWith("oc:") || k.startsWith("vs:")) {
+    else if (k.startsWith("pn:") || k.startsWith("pnpct:") || k.startsWith("mn:")) {
+      if (k.startsWith("pn:"))
+        setPath(store.params[p], k.slice(3), v);
+      else if (k.startsWith("pnpct:")) {
+        setPath(store.params[p], k.slice(6), v / 100);
+        if (k === "pnpct:zinsKurz" && v > 0)
+          modOf(p).kredit.aktiv = true;
+      } else {
+        setPath(modOf(p), k.slice(3), v);
+        const ga = modOf(p).ga;
+        ga.aktiv = ga.max > 0;
+        if (!ga.aktiv)
+          D().gaMenge = 0;
+      }
+      (store.neuOk || (store.neuOk = {}))[p] = true;
+    } else if (k.startsWith("kk:") || k.startsWith("ps:") || k.startsWith("ol:") || k.startsWith("oc:") || k.startsWith("vs:")) {
       toolInput(k, v, el);
       return;
     } else {
@@ -3931,6 +3954,11 @@
         break;
       case "upd":
         location.reload();
+        break;
+      case "neuok":
+        (store.neuOk || (store.neuOk = {}))[p] = true;
+        persist();
+        render();
         break;
       default:
         break;

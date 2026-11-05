@@ -227,3 +227,4 @@ td.bars .half.l { justify-content: flex-end; border-right: 1px solid var(--line)
 .segopt.on { background: var(--head); color: #fff; }
 .seg:has(.segopt) { flex-wrap: wrap; }
 @media (max-width: 860px) { .maskbar { justify-content: flex-start; margin-bottom: 4px; } input.cell { width: 72px; } }
+.btn.warnbtn { background: var(--gold); color: #1a1400; }
