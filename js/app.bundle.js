@@ -18,11 +18,12 @@
         p = preis;
     return p;
   }
-  var EW_DEFAULT = { a: 85.088, ju: 0.403, ek: 0, level: 10.729, fkq: -0.695, bek: 2.554 };
+  var EW_DEFAULT = { a: 41.432, ju: 0, ek: 0, umsatz: 0.018, urend: 19.53, level: 7.062, fkq: -1.236, bek: 2.241 };
+  var EW_V2 = { a: 85.088, ju: 0.403, ek: 0, level: 10.729, fkq: -0.695, bek: 2.554 };
   var EW_ALT = { a: -33, ju: 0.36, ek: 0.071, level: 13.9 };
-  function ewEstimate(P, { ju = 0, ek = 0, level = 0, fkq = 0, bek }) {
-    const E = P.erfolgswert || EW_DEFAULT, B = bek ?? P.bekanntheit ?? 0;
-    return (E.a || 0) + (E.ju || 0) * ju + (E.ek || 0) * ek + (E.level || 0) * level + (E.fkq || 0) * fkq + (E.bek || 0) * B;
+  function ewEstimate(P, { ju = 0, ek = 0, level = 0, fkq = 0, bek, umsatz = 0 }) {
+    const E = P.erfolgswert || EW_DEFAULT, B = bek ?? P.bekanntheit ?? 0, urend = umsatz ? ju / umsatz * 100 : 0;
+    return (E.a || 0) + (E.ju || 0) * ju + (E.ek || 0) * ek + (E.level || 0) * level + (E.fkq || 0) * fkq + (E.bek || 0) * B + (E.umsatz || 0) * umsatz + (E.urend || 0) * urend;
   }
   function qualKosten(P, level) {
     const t2 = P.qualKosten;
@@ -482,7 +483,7 @@
       ek,
       db5Stk: sold ? R.db.db5 / sold * 1e3 : 0
     };
-    R.kpi.erfolgswert = ewEstimate(P, { ju, ek, level, fkq: R.kpi.fkQuote });
+    R.kpi.erfolgswert = ewEstimate(P, { ju, ek, level, fkq: R.kpi.fkQuote, umsatz });
     R.endState = {
       period: R.period,
       level,
@@ -548,7 +549,7 @@
       minKasse: 10,
       einkaufTab: EINKAUF_TAB.map((r) => [...r]),
       verwaltungTab: VERWALTUNG_TAB.map((r) => [...r]),
-      erfolgswert: { a: 85.088, ju: 0.403, ek: 0, level: 10.729, fkq: -0.695, bek: 2.554 },
+      erfolgswert: { a: 41.432, ju: 0, ek: 0, umsatz: 0.018, urend: 19.53, level: 7.062, fkq: -1.236, bek: 2.241 },
       bekanntheit: 50
     };
   }
@@ -1210,10 +1211,12 @@
     return {
       id: "EW",
       title: "Erfolgswert-Sch\xE4tzung",
-      note: "TOPSIM ver\xF6ffentlicht die Erfolgswert-Formel nicht. Die Sch\xE4tzung ist eine Regression \xFCber die Ergebnisse aller Unternehmen aus P1 bis P3 (Kreuztest ca. \xB113 Punkte). Gewichte und Bekanntheit lassen sich unter \u201ERahmendaten der Periode\u201C anpassen.",
+      note: "TOPSIM ver\xF6ffentlicht die Erfolgswert-Formel nicht. Die Sch\xE4tzung ist eine Regression \xFCber die Ergebnisse aller Unternehmen aus P1 bis P3 (Kreuztest ca. \xB120 Punkte). Gewichte und Bekanntheit lassen sich unter \u201ERahmendaten der Periode\u201C anpassen.",
       tables: [{ cols: ["Wert", "Gewicht", "Beitrag"], noUnit: true, rows: [
         { l: "Konstante", v: ["", "", E.a], f: 2 },
-        { l: "Jahres\xFCberschuss (TEUR)", v: [R.guv.ju, nf(E.ju, 3), E.ju * R.guv.ju], f: 2 },
+        ...E.ju ? [{ l: "Jahres\xFCberschuss (TEUR)", v: [R.guv.ju, nf(E.ju, 3), E.ju * R.guv.ju], f: 2 }] : [],
+        ...E.umsatz ? [{ l: "Umsatz (TEUR)", v: [R.guv.umsatz, nf(E.umsatz, 3), E.umsatz * R.guv.umsatz], f: 2 }] : [],
+        ...E.urend ? [{ l: "Umsatzrendite (%)", v: [R.kpi.umsatzRendite, nf(E.urend, 3), E.urend * R.kpi.umsatzRendite], f: 2 }] : [],
         ...E.ek ? [{ l: "Eigenkapital (TEUR)", v: [R.bilanz.ek, nf(E.ek, 3), E.ek * R.bilanz.ek], f: 2 }] : [],
         ...E.fkq ? [{ l: "Fremdkapitalquote (%)", v: [R.kpi.fkQuote, nf(E.fkq, 3), E.fkq * R.kpi.fkQuote], f: 2 }] : [],
         { l: "Produktqualit\xE4t (Level)", v: [nf(R.level.cur, 0), nf(E.level, 3), E.level * R.level.cur], f: 2 },
@@ -2150,7 +2153,7 @@
   }
 
   // js/app.js
-  var VERSION = "1.3.6";
+  var VERSION = "1.3.7";
   var KEY = "tonwerk-planrechner-v1";
   var $ = (s, el = document) => el.querySelector(s);
   var esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -2226,17 +2229,18 @@
       s.konk = {};
       s.konkV = 2;
     }
-    if (s.ewV !== 2) {
+    if (s.ewV !== 3) {
+      const same = (E, R) => Object.keys(R).every((k) => Math.abs((E[k] ?? 0) - R[k]) < 1e-9) && Object.keys(E).every((k) => k in R || !E[k]);
       for (const [p, P] of Object.entries(s.params || {})) {
         const E = P.erfolgswert || {};
-        if (!P.erfolgswert || Object.keys(EW_ALT).every((k) => Math.abs((E[k] ?? 0) - EW_ALT[k]) < 1e-9))
+        if (!P.erfolgswert || same(E, EW_ALT) || same(E, EW_V2))
           P.erfolgswert = { ...EW_DEFAULT };
         if (P.bekanntheit === void 0) {
           const b = lastOwnBek(Number(p), s);
           P.bekanntheit = b ?? 50;
         }
       }
-      s.ewV = 2;
+      s.ewV = 3;
     }
     s.v2 = true;
     return s;
@@ -2522,6 +2526,8 @@
       { p: "erfolgswert.ju", l: "Gewicht Jahres\xFCberschuss", d: 3 },
       { p: "erfolgswert.ek", l: "Gewicht Eigenkapital", d: 3 },
       { p: "erfolgswert.level", l: "Gewicht Produktqualit\xE4t (je Level)", d: 3 },
+      { p: "erfolgswert.umsatz", l: "Gewicht Umsatz (je TEUR)", d: 3 },
+      { p: "erfolgswert.urend", l: "Gewicht Umsatzrendite (je %-Punkt)", d: 3 },
       { p: "erfolgswert.fkq", l: "Gewicht Fremdkapitalquote (je %-Punkt)", d: 3 },
       { p: "erfolgswert.bek", l: "Gewicht Bekanntheit Online-Markt", d: 3 },
       { p: "bekanntheit", l: "Bekanntheit Online-Markt (Index, vorbelegt aus der letzten Marktforschung)", d: 2 }
@@ -3324,7 +3330,7 @@
       if (inp && store.states[p - 1] && dh.preisOnline)
         planJu = simulate(store.states[p - 1], inp.P, { ...inp.D, absatzOnline: dh.absatzOnline, absatzEH: dh.absatzEH || 0 }).kpi.ju;
       const PP = store.params[p] || store.params[planPeriod()] || baseParams();
-      const ewSchatz = his.ju !== void 0 ? ewEstimate({ ...PP, erfolgswert: (store.params[planPeriod()] || PP).erfolgswert }, { ju: his.ju, ek: his.ek || 0, level: his.level || store.states[p]?.level || 0, fkq: his.fkQuote || 0, bek: lastOwnBek(p + 1) ?? PP.bekanntheit }) : null;
+      const ewSchatz = his.ju !== void 0 ? ewEstimate({ ...PP, erfolgswert: (store.params[planPeriod()] || PP).erfolgswert }, { ju: his.ju, ek: his.ek || 0, level: his.level || store.states[p]?.level || 0, fkq: his.fkQuote || 0, bek: lastOwnBek(p + 1) ?? PP.bekanntheit, umsatz: his.umsatz || 0 }) : null;
       return { p, planAbs, ist: his.absatz, pot, model, planJu, ju: his.ju, ew: his.erfolgswert, ewSchatz };
     });
     const pct = (a, b) => a && b ? `${nf((a / b - 1) * 100, 1)} %` : "\u2013";

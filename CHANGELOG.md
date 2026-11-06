@@ -1,5 +1,8 @@
 # Änderungen
 
+## 1.3.7 – 06.11.2026
+- Erfolgswert-Schätzung neu kalibriert auf P1 bis P3 aller Unternehmen. Sie nutzt jetzt Umsatz, Umsatzrendite, Fremdkapitalquote, Produktqualität und Bekanntheit, der Kreuztest liegt bei ca. ±20 Punkten. Unveränderte Standard-Gewichte werden automatisch ersetzt, selbst geänderte bleiben erhalten.
+
 ## 1.3.6 – 05.11.2026
 - Übersicht KPIs: Die Spalte „Vorperiode“ zeigt Online-, Einzelhandels- und Großabnehmer-Absatz sowie die Auslastung der Fertigungsmitarbeiter auch dann richtig, wenn der TOPSIM-Bericht sie umbrochen druckt. Fehlende Werte kommen aus der nachgerechneten Vorperiode.
 - Import liest aus der Executive Summary jetzt auch Absatz je Kanal, die umbrochene Auslastung und die geplante Fertigungsmenge.

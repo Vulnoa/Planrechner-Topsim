@@ -320,10 +320,12 @@ function erfolgswert(R, P, ctx) {
   const E = P.erfolgswert, h = ctx.history;
   const prev = h[R.period - 1]?.erfolgswert;
   return { id: 'EW', title: 'Erfolgswert-Schätzung',
-    note: 'TOPSIM veröffentlicht die Erfolgswert-Formel nicht. Die Schätzung ist eine Regression über die Ergebnisse aller Unternehmen aus P1 bis P3 (Kreuztest ca. ±13 Punkte). Gewichte und Bekanntheit lassen sich unter „Rahmendaten der Periode“ anpassen.',
+    note: 'TOPSIM veröffentlicht die Erfolgswert-Formel nicht. Die Schätzung ist eine Regression über die Ergebnisse aller Unternehmen aus P1 bis P3 (Kreuztest ca. ±20 Punkte). Gewichte und Bekanntheit lassen sich unter „Rahmendaten der Periode“ anpassen.',
     tables: [{ cols: ['Wert', 'Gewicht', 'Beitrag'], noUnit: true, rows: [
       { l: 'Konstante', v: ['', '', E.a], f: 2 },
-      { l: 'Jahresüberschuss (TEUR)', v: [R.guv.ju, nf(E.ju, 3), E.ju * R.guv.ju], f: 2 },
+      ...(E.ju ? [{ l: 'Jahresüberschuss (TEUR)', v: [R.guv.ju, nf(E.ju, 3), E.ju * R.guv.ju], f: 2 }] : []),
+      ...(E.umsatz ? [{ l: 'Umsatz (TEUR)', v: [R.guv.umsatz, nf(E.umsatz, 3), E.umsatz * R.guv.umsatz], f: 2 }] : []),
+      ...(E.urend ? [{ l: 'Umsatzrendite (%)', v: [R.kpi.umsatzRendite, nf(E.urend, 3), E.urend * R.kpi.umsatzRendite], f: 2 }] : []),
       ...(E.ek ? [{ l: 'Eigenkapital (TEUR)', v: [R.bilanz.ek, nf(E.ek, 3), E.ek * R.bilanz.ek], f: 2 }] : []),
       ...(E.fkq ? [{ l: 'Fremdkapitalquote (%)', v: [R.kpi.fkQuote, nf(E.fkq, 3), E.fkq * R.kpi.fkQuote], f: 2 }] : []),
       { l: 'Produktqualität (Level)', v: [nf(R.level.cur, 0), nf(E.level, 3), E.level * R.level.cur], f: 2 },

@@ -1,5 +1,5 @@
 // TONWERK Planrechner – Oberfläche
-import { simulate, ewEstimate, EW_DEFAULT, EW_ALT } from './engine.js';
+import { simulate, ewEstimate, EW_DEFAULT, EW_V2, EW_ALT } from './engine.js';
 import * as DEF from './defaults.js';
 import { buildReports, execSummary, bilanzReport, REPORT_LIST, nf } from './reports.js';
 import { parseReports, pdfToText, stateFromImport } from './importer.js';
@@ -7,7 +7,7 @@ import { downloadZip, downloadSingle, save, spickzettelPdf } from './pdf.js';
 import { t, setLang, getLang } from './i18n.js';
 import { calibrate, looCheck, forecast, firmsFromMarkt, defaultProgSettings, PRIOR } from './prognose.js';
 
-const VERSION = '1.3.6';
+const VERSION = '1.3.7';
 const KEY = 'tonwerk-planrechner-v1';
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -47,13 +47,15 @@ function migrate(s) {
   s.calcMode ||= 'save'; s.module ||= {}; s.prog ||= {}; s.konk ||= {}; s.opt ||= {};
   if (s.konkV !== 2) { s.konk = {}; s.konkV = 2; }   // Konkurrenz-Vorbelegung v1.1.3: Preise nicht mehr fortgeschrieben
   // v1.3.6: neue Erfolgswert-Schätzung (mit Fremdkapitalquote und Bekanntheit); selbst geänderte Gewichte bleiben
-  if (s.ewV !== 2) {
+  // v1.3.7: Formel mit Umsatz und Umsatzrendite; nur unveränderte Standard-Gewichte werden ersetzt
+  if (s.ewV !== 3) {
+    const same = (E, R) => Object.keys(R).every((k) => Math.abs((E[k] ?? 0) - R[k]) < 1e-9) && Object.keys(E).every((k) => k in R || !E[k]);
     for (const [p, P] of Object.entries(s.params || {})) {
       const E = P.erfolgswert || {};
-      if (!P.erfolgswert || Object.keys(EW_ALT).every((k) => Math.abs((E[k] ?? 0) - EW_ALT[k]) < 1e-9)) P.erfolgswert = { ...EW_DEFAULT };
+      if (!P.erfolgswert || same(E, EW_ALT) || same(E, EW_V2)) P.erfolgswert = { ...EW_DEFAULT };
       if (P.bekanntheit === undefined) { const b = lastOwnBek(Number(p), s); P.bekanntheit = b ?? 50; }
     }
-    s.ewV = 2;
+    s.ewV = 3;
   }
   s.v2 = true;
   return s;
@@ -257,6 +259,7 @@ const PARAMS = { title: 'Rahmendaten der Periode', sections: [
   { id: 'p-erfolg', h: 'Erfolgswert-Schätzung', fields: [
     { p: 'erfolgswert.a', l: 'Konstante', d: 2 }, { p: 'erfolgswert.ju', l: 'Gewicht Jahresüberschuss', d: 3 },
     { p: 'erfolgswert.ek', l: 'Gewicht Eigenkapital', d: 3 }, { p: 'erfolgswert.level', l: 'Gewicht Produktqualität (je Level)', d: 3 },
+    { p: 'erfolgswert.umsatz', l: 'Gewicht Umsatz (je TEUR)', d: 3 }, { p: 'erfolgswert.urend', l: 'Gewicht Umsatzrendite (je %-Punkt)', d: 3 },
     { p: 'erfolgswert.fkq', l: 'Gewicht Fremdkapitalquote (je %-Punkt)', d: 3 }, { p: 'erfolgswert.bek', l: 'Gewicht Bekanntheit Online-Markt', d: 3 },
     { p: 'bekanntheit', l: 'Bekanntheit Online-Markt (Index, vorbelegt aus der letzten Marktforschung)', d: 2 }] },
 ] };
@@ -895,7 +898,7 @@ function renderPlanIst() {
     const inp = store.istInputs[p];
     if (inp && store.states[p - 1] && dh.preisOnline) planJu = simulate(store.states[p - 1], inp.P, { ...inp.D, absatzOnline: dh.absatzOnline, absatzEH: dh.absatzEH || 0 }).kpi.ju;
     const PP = store.params[p] || store.params[planPeriod()] || DEF.baseParams();
-    const ewSchatz = his.ju !== undefined ? ewEstimate({ ...PP, erfolgswert: (store.params[planPeriod()] || PP).erfolgswert }, { ju: his.ju, ek: his.ek || 0, level: his.level || store.states[p]?.level || 0, fkq: his.fkQuote || 0, bek: lastOwnBek(p + 1) ?? PP.bekanntheit }) : null;
+    const ewSchatz = his.ju !== undefined ? ewEstimate({ ...PP, erfolgswert: (store.params[planPeriod()] || PP).erfolgswert }, { ju: his.ju, ek: his.ek || 0, level: his.level || store.states[p]?.level || 0, fkq: his.fkQuote || 0, bek: lastOwnBek(p + 1) ?? PP.bekanntheit, umsatz: his.umsatz || 0 }) : null;
     return { p, planAbs, ist: his.absatz, pot, model, planJu, ju: his.ju, ew: his.erfolgswert, ewSchatz };
   });
   const pct = (a, b) => (a && b ? `${nf((a / b - 1) * 100, 1)} %` : '–');

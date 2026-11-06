@@ -21,11 +21,14 @@ export function staffelPreis(staffel, menge) {
 }
 
 // Erfolgswert-Schätzung (TOPSIM veröffentlicht die Formel nicht; Koeffizienten aus Regression, in der App änderbar)
-export const EW_DEFAULT = { a: 85.088, ju: 0.403, ek: 0, level: 10.729, fkq: -0.695, bek: 2.554 };
+// v1.3.7: Regression über P1–P3 aller Unternehmen (ohne U1), Kreuztest ca. ±20
+export const EW_DEFAULT = { a: 41.432, ju: 0, ek: 0, umsatz: 0.018, urend: 19.53, level: 7.062, fkq: -1.236, bek: 2.241 };
+export const EW_V2 = { a: 85.088, ju: 0.403, ek: 0, level: 10.729, fkq: -0.695, bek: 2.554 };
 export const EW_ALT = { a: -33, ju: 0.36, ek: 0.071, level: 13.9 };
-export function ewEstimate(P, { ju = 0, ek = 0, level = 0, fkq = 0, bek }) {
-  const E = P.erfolgswert || EW_DEFAULT, B = bek ?? P.bekanntheit ?? 0;
-  return (E.a || 0) + (E.ju || 0) * ju + (E.ek || 0) * ek + (E.level || 0) * level + (E.fkq || 0) * fkq + (E.bek || 0) * B;
+export function ewEstimate(P, { ju = 0, ek = 0, level = 0, fkq = 0, bek, umsatz = 0 }) {
+  const E = P.erfolgswert || EW_DEFAULT, B = bek ?? P.bekanntheit ?? 0, urend = umsatz ? ju / umsatz * 100 : 0;
+  return (E.a || 0) + (E.ju || 0) * ju + (E.ek || 0) * ek + (E.level || 0) * level + (E.fkq || 0) * fkq + (E.bek || 0) * B
+    + (E.umsatz || 0) * umsatz + (E.urend || 0) * urend;
 }
 
 export function qualKosten(P, level) {
@@ -333,7 +336,7 @@ export function simulate(S, P, D, C = { fields: [], values: {} }) {
     ekRendite: ekVor ? ju / ekVor * 100 : 0, umsatzRendite: umsatz ? ju / umsatz * 100 : 0,
     fkQuote: bil.passiva ? bil.fk / bil.passiva * 100 : 0, ek, db5Stk: sold ? R.db.db5 / sold * 1000 : 0,
   };
-  R.kpi.erfolgswert = ewEstimate(P, { ju, ek, level, fkq: R.kpi.fkQuote });
+  R.kpi.erfolgswert = ewEstimate(P, { ju, ek, level, fkq: R.kpi.fkQuote, umsatz });
 
   // ---------- Endstand für die Folgeperiode ----------
   R.endState = {
